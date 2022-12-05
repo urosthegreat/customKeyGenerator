@@ -13,21 +13,23 @@ import java.util.Arrays;
 import java.util.Random;
 
 /**
- * CustomKeyGenerator class is used to generate 4 types of secure keys,
- * going from lowest to the most secure method.
+ * CustomKeyGenerator se koristi za generisanje 4 tipa bezbednih ključeva,
+ * od najnižeg do najbezbednijeg metoda.
  */
 public class CustomKeyGenerator {
     private static final String REGEX_EXPRESSION = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
+    private static final String PBKDF2_WITH_HMAC_SHA256 = "PBKDF2WithHmacSHA256";
     private static final Random random = new Random();
     private static final SecureRandom secureRandom = new SecureRandom();
+
     /**
-     * The Java Random class is a Pseudo-Random Number Generator (PRNG),
-     * also known as Deterministic Random Number Generator (DRNG).
-     * This means it's not truly random.
-     * The sequence of random numbers in a PRNG can be completely determined based on its seed.
-     * Java doesn't recommend using Random for cryptographic applications.
+     * Java Random klasa je generator pseudo-slučajnih brojeva (PRNG),
+     * takođe poznat kao Deterministički generator slučajnih brojeva (DRNG).
+     * To znači da nije zaista slučajno.
+     * Redosled nasumičnih brojeva u PRNG može se u potpunosti odrediti na osnovu njegovog seed-a.
+     * Java ne preporučuje korišćenje Random-a za kriptografske aplikacije.
      * <p>
-     * With that said, NEVER use Random for generating keys.
+     * Uz to rečeno, NIKADA ne koristite Random za generisanje ključeva.
      *
      * @param cipher  {@link String}
      * @param keySize {@link Integer}
@@ -40,12 +42,12 @@ public class CustomKeyGenerator {
     }
 
     /**
-     * We instantiate a byte array of the desired key size.
-     * Now, instead of using Random, we use SecureRandom to generate the random bytes for our byte array.
-     * SecureRandom is recommended by Java for generating a random number for cryptographic applications.
-     * It minimally complies with FIPS 140-2, Security Requirements for Cryptographic Modules.
+     * Instanciramo niz bajtova željene veličine ključa.
+     * Sada, umesto da koristimo Random, koristimo SecureRandom da generišemo nasumične bajtove za naš niz bajtova.
+     * Java preporučuje SecureRandom za generisanje slučajnog broja za kriptografske aplikacije.
+     * Minimalno je u skladu sa FIPS 140-2, bezbednosnim zahtevima za kriptografske module.
      * <p>
-     * Clearly, in Java, SecureRandom is the de-facto standard for obtaining randomness.
+     * Jasno je da je u Javi SecureRandom de-fakto standard za dobijanje nasumice.
      *
      * @param cipher  {@link String}
      * @param keySize {@link Integer}
@@ -58,31 +60,29 @@ public class CustomKeyGenerator {
     }
 
     /**
-     * We instantiate the CustomKeyGenerator class.
-     * Now, instead of using Random or SecureRandom, to generate the key,
-     * we are going to use the getKeyFromKeyGenerator() method.
-     * It takes in our cipher and preferred key size and generates our Key.
+     * Instanciramo klasu KeyGenerator gde prosledjujemo odgovarajući šifrat.
+     * Nakon toga, inicijalizujemo generator ključa sa odgovarajućom dužinom ključa.
      * <p>
+     * Dakle, kako se razlikuje od Random i SecureRandom pristupa?
+     * Postoje dve ključne razlike koje vredi istaći.
      * <p>
-     * So, how's it different from the Random and SecureRandom approaches?
-     * There are two crucial differences worth highlighting.
-     * <p>
-     * For one, neither the Random nor SecureRandom approach
-     * can tell whether we're generating keys of the right sizes as per the Cipher specification.
-     * It's only when we go for encryption that we'll encounter exceptions if the keys are of an unsupported size.
-     * Using SecureRandom with invalid keySize throws an exception when we initialize the cipher for encryption.
-     * Using CustomKeyGenerator, on the other hand, fails during key generation itself,
-     * allowing us to handle it more appropriately
+     * Kao prvo, ni Random ni SecureRandom pristup
+     * ne može da kaže da li generišemo ključeve prave veličine prema specifikaciji šifre.
+     * Tek kada idemo na šifrovanje, naići ćemo na izuzetke ako su ključevi nepodržane veličine.
+     * Korišćenje SecureRandom-a sa nevažećim keySize-om dovodi do izuzetka kada inicijalizujemo šifru za šifrovanje.
+     * Korišćenje KeyGenerator, s druge strane, ne uspeva tokom samog generisanja ključa,
+     * omogućavajući nam da to bolje postupamo.
      *
      * @param cipher  {@link String}
      * @param keySize {@link Integer}
      * @return {@link Key}
      */
-    protected static Key getKeyFromKeyGenerator(String cipher, int keySize) throws NoSuchAlgorithmException{
+    protected static Key getKeyFromKeyGenerator(String cipher, int keySize) throws NoSuchAlgorithmException {
         KeyGenerator keyGenerator = KeyGenerator.getInstance(cipher);
         keyGenerator.init(keySize);
         return keyGenerator.generateKey();
     }
+
     public Key getKeyFromKG(String cipher, int keySize) {
         try {
             return getKeyFromKeyGenerator(cipher, keySize);
@@ -90,28 +90,31 @@ public class CustomKeyGenerator {
             throw new RuntimeException(e);
         }
     }
+
     /**
-     * We've been generating keys from random and not-so-human-friendly byte arrays.
-     * Password-Based Key (PBK) offers us the ability to generate a SecretKey based on a human-readable password
-     *<p>
-     * A user-friendly password doesn't have enough entropy.
-     * Hence, we add additional randomly generated bytes called a salt to make it harder to guess.
-     * The minimum salt length should be 128 bits. We used SecureRandom to generate our salt.
-     * The salt isn't a secret and is stored as plaintext.
-     * We should generate salt in pairs with each password and not use the same salt globally.
-     * This will protect from Rainbow Table attacks,
-     * which use lookups from a precomputed hash table for cracking the passwords.
+     * Generisali smo ključeve iz nasumičnih nizova bajtova koji nisu prilagođeni ljudima.
+     * Ključ zasnovan na lozinki (Password-Based Key - PBK) nam nudi mogućnost da generišemo tajni ključ
+     * na osnovu lozinke koja se može pročitati.
+     * <p>
+     * Lozinka prilagođena korisniku nema dovoljno entropije.
+     * Zbog toga dodajemo dodatne nasumično generisane bajtove zvane sol(salt) da bismo otežali pogađanje.
+     * Minimalna dužina soli treba da bude 128 bita. Koristili smo SecureRandom da generišemo našu so.
+     * Sol nije tajna i čuva se kao otvoreni tekst.
+     * Trebalo bi da generišemo so u parovima sa svakom lozinkom i ne koristimo istu so globalno.
+     * Ovo će zaštititi od napada Rainbow Table,
+     * koje koriste pretrage iz unapred izračunate heš tabele za razbijanje lozinki.
      * </p>
      * <p>
-     * The iteration count is the number of times the secret generation algorithm applies the transformation function.
-     * It should be as large as feasible. The minimum recommended iteration count is 1,000.
-     * A higher iteration count increases the complexity for the attacker while performing
-     * a brute-force check for all possible passwords.
-     * The key size is the same we discussed earlier, which can be 128, 192, or 256 for AES.
-     * We've wrapped all the four elements discussed above into a PBEKeySpec object.
-     * Next, using the SecretKeyFactory, we get an instance of PBKDF2WithHmacSHA256 algorithm to generate the key.
-     * Finally, invoking generateSecret with the PBEKeySpec, we generate a SecretKey based on a human-readable password.
+     * Broj iteracija je koliko puta algoritam generisanja tajne primenjuje funkciju transformacije.
+     * Trebalo bi da bude što je moguće veće. Minimalni preporučeni broj ponavljanja je 1.000.
+     * Veći broj ponavljanja povećava složenost napadača tokom izvođenja
+     * bruteforce provera za sve moguće lozinke.
+     * Veličina ključa je ista o kojoj smo ranije govorili, a može biti 128, 192 ili 256 za AES.
+     * Sva četiri elementa o kojima smo gore govorili smo umotali u PBEKeySpec objekat.
+     * Zatim, koristeći SecretKeyFactory, dobijamo instancu PBKDF2WithHmacSHA256 algoritma za generisanje ključa.
+     * Konačno, pozivanjem generateSecret sa PBEKeySpec, generišemo SecretKey na osnovu lozinke čitljive ljudima.
      * </p>
+     *
      * @param cipher   {@link String}
      * @param keySize  {@link Integer}
      * @param password {@link Character}
@@ -124,14 +127,14 @@ public class CustomKeyGenerator {
             throw new PasswordError();
         }
         PBEKeySpec pbeKeySpec = new PBEKeySpec(password, salt, 1000, keySize);
-        SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
+        SecretKey pbeKey = SecretKeyFactory.getInstance(PBKDF2_WITH_HMAC_SHA256).generateSecret(pbeKeySpec);
         return new SecretKeySpec(pbeKey.getEncoded(), cipher);
     }
 
     /**
-     * This password is a secret and must be protected. The password guidelines must be followed,
-     * such as a minimum length of 8 characters, the use of special characters,
-     * the combination of uppercase and lowercase letters, digits, and so on.
+     * Ova lozinka je tajna i mora biti zaštićena. Moraju se poštovati uputstva za lozinku,
+     * kao što je minimalna dužina od 8 znakova, upotreba specijalnih znakova,
+     * kombinacija velikih i malih slova, cifara i tako dalje.
      *
      * @param password {@link Character}
      * @return {@link Boolean}
